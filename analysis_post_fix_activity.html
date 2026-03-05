@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Franz - Post-Fix Checklist</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+--bg:#0a0a0c;--surface:#121218;--surface2:#18181f;--border:#252530;
+--accent:#4a9eff;--text:#e4e4ec;--text-dim:#55556a;--text-mid:#8e8ea8;
+--ok:#3ecf8e;--warn:#f0a000;--err:#ff4455;--mono:"Cascadia Code","Fira Code","Consolas",monospace
+}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,sans-serif;font-size:13px;line-height:1.6;padding:40px;max-width:1100px;margin:0 auto}
+h1{font-size:22px;color:var(--accent);margin-bottom:6px}
+.subtitle{color:var(--text-dim);font-size:12px;margin-bottom:36px;font-family:var(--mono)}
+h2{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text-dim);margin:40px 0 12px;border-bottom:1px solid var(--border);padding-bottom:6px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:8px 12px;background:var(--surface);color:var(--text-dim);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:10px;border-bottom:2px solid var(--border)}
+td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface)}
+.num{font-family:var(--mono);color:var(--text-dim);font-size:11px;white-space:nowrap;width:36px}
+.file{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;background:var(--surface2);color:var(--text-mid);white-space:nowrap}
+.file.brain{background:#1a2a40;color:#6ab0ff}
+.file.hub{background:#1a3020;color:#5edf8e}
+.file.panel{background:#2a1a3a;color:#cc88ff}
+.file.win32{background:#3a2a10;color:#ffaa44}
+.file.multi{background:#2a2a30;color:#a0a0b8}
+.desc{color:var(--text-mid)}
+.status{text-align:center;width:60px;font-size:18px}
+.fixed{color:var(--ok)}
+.open{color:var(--err)}
+.partial{color:var(--warn)}
+.src{font-size:10px;font-family:var(--mono);color:var(--text-dim);padding:2px 6px;border-radius:3px;background:var(--surface2);white-space:nowrap}
+</style>
+</head>
+<body>
+<h1>Franz - Post-Fix Activity Checklist</h1>
+<div class="subtitle">Combined audit of analysis.html + panel-improvements-plan.html + analysis-duplicated_dead.html -- verified against current code</div>
+
+<h2>analysis.html -- Architecture / Logic Issues (brain + hub)</h2>
+<table>
+<thead><tr><th class="num">#</th><th>File</th><th>Issue</th><th>Status</th></tr></thead>
+<tbody>
+<tr>
+  <td class="num">1</td>
+  <td><span class="file brain">brain</span></td>
+  <td class="desc">JSON parse fallback silently swallows Grok failure -- <span class="src">decision = {}</span> on bad JSON</td>
+  <td class="status fixed" title="Empty raw now continues with error log. Bad JSON raises, logs, updates history, continues.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">2</td>
+  <td><span class="file brain">brain</span></td>
+  <td class="desc">Python decides phase from action list length -- <span class="src">phase = "EXECUTE" if actions else "EVALUATE"</span></td>
+  <td class="status fixed" title="Grok now emits phase in JSON. Python reads decision.get('phase') verbatim.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">3</td>
+  <td><span class="file brain">brain</span></td>
+  <td class="desc">_dispatch_action invents coordinates -- <span class="src">action.get("x", 500)</span> / <span class="src">action.get("x1", 400)</span></td>
+  <td class="status fixed" title="Missing x/y or x1/y1/x2/y2 now raises ValueError surfaced to swarm.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">4</td>
+  <td><span class="file brain">brain</span></td>
+  <td class="desc">press_key default invents key -- <span class="src">action.get("key", "enter")</span></td>
+  <td class="status fixed" title="Missing key now raises ValueError.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">5</td>
+  <td><span class="file brain">brain</span></td>
+  <td class="desc">hotkey silently normalizes list to string -- <span class="src">if isinstance(keys, list): keys = "+".join(keys)</span></td>
+  <td class="status fixed" title="Non-string keys now raises ValueError.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">6</td>
+  <td><span class="file brain">brain</span></td>
+  <td class="desc">observation contains no actual screen data -- agents reason blind, frame_b64 only sent to Grok</td>
+  <td class="status fixed" title="frame_b64 now passed to all 5 agents as image_url content in _call_agent.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">7</td>
+  <td><span class="file brain">brain</span></td>
+  <td class="desc">history only updated on goal completion -- never records failures or actions taken</td>
+  <td class="status fixed" title="history now updated every cycle with phase, progress, actions list, and dispatch errors. Capped at 800 chars.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">8</td>
+  <td><span class="file brain">brain</span></td>
+  <td class="desc">max_tokens=512 for agents causes silent truncation on 2B model</td>
+  <td class="status fixed" title="Agents raised to max_tokens=1024, captain raised to max_tokens=1200.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">9</td>
+  <td><span class="file hub">hub</span></td>
+  <td class="desc">Annotation timeout substitutes raw frame as annotated -- <span class="src">_ann_result_b64 = raw</span> on timeout</td>
+  <td class="status open" title="Still present in franz_hub.py line 683. Not touched in this fix session.">&#10007;</td>
+</tr>
+<tr>
+  <td class="num">10</td>
+  <td><span class="file hub">hub</span></td>
+  <td class="desc">_subprocess_cursor_pos returns 500,500 on failure -- fabricated cursor position</td>
+  <td class="status open" title="Still present in franz_hub.py lines 552/555. Not touched.">&#10007;</td>
+</tr>
+<tr>
+  <td class="num">11</td>
+  <td><span class="file hub">hub</span></td>
+  <td class="desc">VLM exception handler returns empty string -- loop continues silently on VLM failure</td>
+  <td class="status partial" title="Hub still returns empty string from _do_vlm_call. Brain now detects empty raw and surfaces it as error + continues. Partial: hub side unchanged, brain side fixed.">&#9651;</td>
+</tr>
+<tr>
+  <td class="num">12</td>
+  <td><span class="file hub">hub</span></td>
+  <td class="desc">_clamp silently corrects out-of-range coordinates -- hallucinated coords execute at wrong location</td>
+  <td class="status open" title="Still present in franz_hub.py. _clamp still applied in all action helpers. Not touched.">&#10007;</td>
+</tr>
+</tbody>
+</table>
+
+<h2>panel-improvements-plan.html -- Panel Layout, UX, Plumbing (panel.html)</h2>
+<table>
+<thead><tr><th class="num">#</th><th>File</th><th>Issue</th><th>Status</th></tr></thead>
+<tbody>
+<tr>
+  <td class="num">1</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">Only horizontal split -- no vertical split between swarm and event log, no three-quadrant layout</td>
+  <td class="status fixed" title="v-gutter (full height) and h-gutter (right pane only) added. CSS grid with 3 rows on right side. Both gutters draggable with localStorage persistence.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">2</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">--split-x CSS variable in :root is dead -- JS overwrites it before first paint</td>
+  <td class="status fixed" title="--split-x removed from :root. #root no longer uses var(--split-x). Layout driven by JS only.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">3</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">fitCanvas not called when right pane resizes vertically</td>
+  <td class="status fixed" title="h-gutter drag handler calls fitCanvas() on every mousemove.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">4</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">canvas-stack uses absolute positioning -- should use CSS grid stack</td>
+  <td class="status fixed" title="#canvas-stack now uses display:grid. Both canvases use grid-area:1/1. No more position:absolute.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">5</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">swarm-rows does not auto-scroll to most recently updated agent</td>
+  <td class="status fixed" title="nearBottom check added after upsertAgentRow. Calls row.scrollIntoView if within 60px of bottom.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">6</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">agent-row-body max-height:400px hardcoded -- clips long outputs with no scroll</td>
+  <td class="status fixed" title="Expanded body now uses max-height:60vh and overflow-y:auto.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">7</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">agent-row-preview div is redundant -- same content as body, one extra DOM element per agent</td>
+  <td class="status fixed" title="agent-row-preview div removed. Line-clamp applied directly to .agent-row-body in collapsed state. .open removes clamp.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">8</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">event-log prepends (newest at top) -- inconsistent with swarm-rows direction</td>
+  <td class="status fixed" title="uiLog now uses appendChild + scrollTop=scrollHeight. Newest at bottom, consistent with swarm panel.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">9</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">"cycle: N" in status bar shows raw swarm message index, not a cycle count</td>
+  <td class="status fixed" title="cycle counter and sb-cycle span removed from status bar entirely.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">10</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">badge-img shows stale "seq N ok" -- redundant with sb-seq and canvas-status</td>
+  <td class="status fixed" title="badge-img replaced with ann-dot: a small colored dot that pulses during annotation and goes green/red on result.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">11</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">Panel modifies no hub data -- plumbing contract is clean (no change needed)</td>
+  <td class="status fixed" title="Confirmed: panel still only POSTs /annotated. No hub changes made.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">12</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">fallbackPoll starts immediately on load before SSE has a chance to connect</td>
+  <td class="status fixed" title="fallbackTimer = setInterval removed from load path. Only starts inside es.onerror.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">13</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">SSE reconnect never attempted after connection loss</td>
+  <td class="status fixed" title="setTimeout(startSSE, 5000) added inside es.onerror.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">14</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">lastPendingSeq is misleadingly named -- it is actually lastAttemptedSeq</td>
+  <td class="status fixed" title="Renamed to lastAttemptedSeq throughout.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">15</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">cycleCount variable declared but never used</td>
+  <td class="status fixed" title="let cycleCount = 0 removed entirely.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">16</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">--radius CSS variable declared but never referenced</td>
+  <td class="status fixed" title="--radius:10px removed from :root.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">17</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">OffscreenCanvas merge block duplicated in exportAnnotated and btn-save-log handler</td>
+  <td class="status fixed" title="Save handler now calls exportAnnotated() directly. Duplicate OffscreenCanvas block removed.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">18</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">document.getElementById('badge-img') called 3x uncached inside handleFrame</td>
+  <td class="status fixed" title="badge-img replaced by annDot cached at module init. sbSeq and canvasStatus also cached.">&#10003;</td>
+</tr>
+</tbody>
+</table>
+
+<h2>analysis-duplicated_dead.html -- Duplicates, Dead Code, Merge Candidates</h2>
+<table>
+<thead><tr><th class="num">#</th><th>File</th><th>Issue</th><th>Status</th></tr></thead>
+<tbody>
+<tr>
+  <td class="num">1</td>
+  <td><span class="file multi">hub+win32+panel</span></td>
+  <td class="desc">NORM = 1000 defined independently in three files -- no single source of truth</td>
+  <td class="status open" title="Still present in all three files. Architectural constraint: win32.py is a subprocess and cannot import from hub.">&#10007;</td>
+</tr>
+<tr>
+  <td class="num">2</td>
+  <td><span class="file multi">hub+win32</span></td>
+  <td class="desc">_clamp and _clamp_norm are identical functions in two files</td>
+  <td class="status open" title="Still present. Same subprocess constraint as #1.">&#10007;</td>
+</tr>
+<tr>
+  <td class="num">3</td>
+  <td><span class="file multi">brain+hub+win32+panel</span></td>
+  <td class="desc">Action type enumeration repeated four times across the codebase</td>
+  <td class="status open" title="Still present in all four locations. Architectural -- each layer owns its own dispatch.">&#10007;</td>
+</tr>
+<tr>
+  <td class="num">4</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">OffscreenCanvas merge block written twice in panel.html</td>
+  <td class="status fixed" title="Fixed as part of panel improvement #17. Save handler now calls exportAnnotated().">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">5</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">getElementById('badge-img') called 3x uncached inside handleFrame</td>
+  <td class="status fixed" title="Fixed as part of panel improvement #18. badge-img replaced by cached annDot.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">6</td>
+  <td><span class="file hub">hub</span></td>
+  <td class="desc">VLM call body duplicated between call_vlm_orchestrator and call_vlm_agent</td>
+  <td class="status open" title="Still present in franz_hub.py. Both functions still contain the same semaphore+delay+call pattern.">&#10007;</td>
+</tr>
+<tr>
+  <td class="num">7</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">upsertChip called from three separate paths doing the same agent state update</td>
+  <td class="status open" title="Still present. SSE state handler, SSE agent_status handler, and fallbackPoll all call upsertChip.">&#10007;</td>
+</tr>
+<tr>
+  <td class="num">8</td>
+  <td><span class="file win32">win32</span></td>
+  <td class="desc">_do_click, _do_double_click, _do_right_click share identical 4-line preamble</td>
+  <td class="status open" title="Still present in win32.py. No _move_to helper extracted.">&#10007;</td>
+</tr>
+<tr>
+  <td class="num">9</td>
+  <td><span class="file hub">hub</span></td>
+  <td class="desc">route_action_string() is never called anywhere -- 40 lines of dead code</td>
+  <td class="status open" title="Still present in franz_hub.py. Function not removed.">&#10007;</td>
+</tr>
+<tr>
+  <td class="num">10</td>
+  <td><span class="file hub">hub</span></td>
+  <td class="desc">get_agent_semaphore() is never called anywhere</td>
+  <td class="status open" title="Still present in franz_hub.py line 524.">&#10007;</td>
+</tr>
+<tr>
+  <td class="num">11</td>
+  <td><span class="file hub">hub</span></td>
+  <td class="desc">dot(), box(), line() overlay helpers never called by brain_agentic.py</td>
+  <td class="status open" title="Still present in franz_hub.py lines 112-142. Brain still builds overlays as raw dicts.">&#10007;</td>
+</tr>
+<tr>
+  <td class="num">12</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">cycleCount variable declared but never used</td>
+  <td class="status fixed" title="Fixed as part of panel improvement #15. Removed entirely.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">13</td>
+  <td><span class="file hub">hub</span></td>
+  <td class="desc">BOARD_PATH + /board route -- hub_board.html does not exist, will crash on request</td>
+  <td class="status open" title="Still present in franz_hub.py lines 34 and 811. File still missing from project.">&#10007;</td>
+</tr>
+<tr>
+  <td class="num">14</td>
+  <td><span class="file multi">project</span></td>
+  <td class="desc">html_to_b64.py is a standalone utility with no system integration</td>
+  <td class="status open" title="File still present in project root. Not removed.">&#10007;</td>
+</tr>
+<tr>
+  <td class="num">15</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">--radius CSS variable declared but never used</td>
+  <td class="status fixed" title="Fixed as part of panel improvement #16. Removed from :root.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">16</td>
+  <td><span class="file panel">panel</span></td>
+  <td class="desc">--split-x CSS variable in :root overwritten by JS before first paint</td>
+  <td class="status fixed" title="Fixed as part of panel improvement #2. Removed from :root and from #root rule.">&#10003;</td>
+</tr>
+<tr>
+  <td class="num">17</td>
+  <td><span class="file multi">brain+hub</span></td>
+  <td class="desc">_dispatch_action in brain and _execute_action in hub are two halves of one pipeline -- redundant schema translation</td>
+  <td class="status open" title="Both still present. _dispatch_action still translates Grok JSON to hub dicts. Architectural decision not made.">&#10007;</td>
+</tr>
+<tr>
+  <td class="num">18</td>
+  <td><span class="file hub">hub</span></td>
+  <td class="desc">call_vlm_orchestrator and call_vlm_agent can be unified with a semaphore parameter</td>
+  <td class="status open" title="Still two separate functions in franz_hub.py. Not merged.">&#10007;</td>
+</tr>
+<tr>
+  <td class="num">19</td>
+  <td><span class="file win32">win32</span></td>
+  <td class="desc">_do_click preamble extractable into _move_to helper</td>
+  <td class="status open" title="Still copy-pasted three times in win32.py. No helper extracted.">&#10007;</td>
+</tr>
+<tr>
+  <td class="num">20</td>
+  <td><span class="file brain">brain</span></td>
+  <td class="desc">Agent system prompts share a common header copy-pasted five times</td>
+  <td class="status open" title="Still five separate prompt strings in brain_agentic.py. No shared header template.">&#10007;</td>
+</tr>
+<tr>
+  <td class="num">21</td>
+  <td><span class="file multi">hub+panel</span></td>
+  <td class="desc">state and agent_status SSE events carry overlapping agent data -- upsertChip called twice per status change</td>
+  <td class="status open" title="Still present. Both SSE handlers still call upsertChip independently.">&#10007;</td>
+</tr>
+</tbody>
+</table>
+
+<h2>Summary</h2>
+<table>
+<thead><tr><th>Source</th><th>Total</th><th style="color:var(--ok)">Fixed</th><th style="color:var(--warn)">Partial</th><th style="color:var(--err)">Open</th></tr></thead>
+<tbody>
+<tr><td>analysis.html (arch/logic)</td><td>12</td><td style="color:var(--ok)">8</td><td style="color:var(--warn)">1</td><td style="color:var(--err)">3</td></tr>
+<tr><td>panel-improvements-plan.html</td><td>18</td><td style="color:var(--ok)">18</td><td style="color:var(--warn)">0</td><td style="color:var(--err)">0</td></tr>
+<tr><td>analysis-duplicated_dead.html</td><td>21</td><td style="color:var(--ok)">6</td><td style="color:var(--warn)">0</td><td style="color:var(--err)">15</td></tr>
+<tr style="font-weight:700"><td>Total</td><td>51</td><td style="color:var(--ok)">32</td><td style="color:var(--warn)">1</td><td style="color:var(--err)">18</td></tr>
+</tbody>
+</table>
+
+</body>
+</html>
