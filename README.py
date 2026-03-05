@@ -1,4 +1,3 @@
-"""
 # Franz
 
 A Windows computer-use AI swarm. Captures the screen, runs a 5-agent debate, and executes input actions to complete arbitrary tasks.
@@ -527,4 +526,3 @@ The panel scales the same 0-1000 space to canvas dimensions when rendering overl
 - No hardcoded endpoints, ports, or model names in the brain; use `hub.cfg()`.
 - SSE is primary; fallback polling activates only after SSE failure, never in parallel.
 - SSE reconnect is attempted automatically after 5 seconds on connection loss.
-"""
